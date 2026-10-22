@@ -1,0 +1,229 @@
+// ==========================================
+// BookMyShow-lite Database Schema (DBML)
+// Conventions:
+// - Money: integer paise (INR)
+// - Timestamps: timestamptz (UTC)
+// - Primary Keys: uuid
+// ==========================================
+
+Table roles {
+  id smallint [pk, increment]
+  name varchar(20) [unique, not null, note: 'customer, organizer, admin']
+  created_at timestamptz [default: `now()`, not null]
+}
+
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`]
+  full_name varchar(100) [not null]
+  username varchar(20) [unique, not null]
+  email varchar(254) [unique, not null]
+  password_hash varchar(255) [null, note: 'NULL for Google OAuth users']
+  role_id smallint [not null, default: 1]
+  email_verified boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  failed_login_attempts int [not null, default: 0]
+  locked_until timestamptz [null]
+  last_login_at timestamptz [null]
+  username_changed_at timestamptz [null]
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+  deleted_at timestamptz [null, note: 'Soft delete']
+
+  indexes {
+    username [unique]
+    email [unique]
+  }
+}
+
+Table refresh_tokens {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  token_hash char(64) [unique, not null]
+  family_id uuid [not null, note: 'For JWT token rotation replay attack detection']
+  is_revoked boolean [not null, default: false]
+  expires_at timestamptz [not null]
+  created_at timestamptz [default: `now()`, not null]
+}
+
+Table one_time_tokens {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  type varchar(20) [not null, note: 'EMAIL_VERIFY, PASSWORD_RESET']
+  token_hash char(64) [unique, not null]
+  expires_at timestamptz [not null]
+  used_at timestamptz [null]
+  created_at timestamptz [default: `now()`, not null]
+}
+
+Table cities {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name varchar(100) [unique, not null]
+  state varchar(100) [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [default: `now()`, not null]
+}
+
+Table venues {
+  id uuid [pk, default: `gen_random_uuid()`]
+  city_id uuid [not null]
+  organizer_id uuid [not null]
+  name varchar(150) [not null]
+  address text [not null]
+  contact_phone varchar(20) [not null]
+  is_approved boolean [not null, default: false, note: 'Admin approval required']
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+  deleted_at timestamptz [null]
+}
+
+Table screens {
+  id uuid [pk, default: `gen_random_uuid()`]
+  venue_id uuid [not null]
+  screen_number int [not null]
+  name varchar(50) [not null, note: 'e.g. Audi 1, IMAX']
+  total_seats int [not null, default: 0]
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+
+  indexes {
+    (venue_id, screen_number) [unique]
+  }
+}
+
+Table seats {
+  id uuid [pk, default: `gen_random_uuid()`]
+  screen_id uuid [not null]
+  row_label varchar(5) [not null, note: 'A, B, C...']
+  seat_number int [not null, note: '1, 2, 3...']
+  seat_type varchar(20) [not null, note: 'SILVER, GOLD, PLATINUM, VIP']
+  created_at timestamptz [default: `now()`, not null]
+
+  indexes {
+    (screen_id, row_label, seat_number) [unique]
+  }
+}
+
+Table movies {
+  id uuid [pk, default: `gen_random_uuid()`]
+  title varchar(200) [not null]
+  description text [not null]
+  duration_mins int [not null]
+  release_date date [not null]
+  language varchar(50) [not null]
+  certification varchar(10) [not null, note: 'U, UA, A, R']
+  is_active boolean [not null, default: true]
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+}
+
+Table shows {
+  id uuid [pk, default: `gen_random_uuid()`]
+  screen_id uuid [not null]
+  movie_id uuid [not null]
+  start_time timestamptz [not null]
+  end_time timestamptz [not null]
+  base_price_paise int [not null, note: 'Integer paise: e.g. 25000 = 250 INR']
+  status varchar(20) [not null, default: 'SCHEDULED', note: 'SCHEDULED, CANCELLED, COMPLETED']
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+}
+
+Table show_seats {
+  id uuid [pk, default: `gen_random_uuid()`]
+  show_id uuid [not null]
+  seat_id uuid [not null]
+  price_paise int [not null]
+  status varchar(20) [not null, default: 'AVAILABLE', note: 'AVAILABLE, LOCKED, BOOKED']
+  locked_by_user_id uuid [null]
+  locked_at timestamptz [null]
+  version int [not null, default: 0, note: 'Optimistic locking version']
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+
+  indexes {
+    (show_id, seat_id) [unique]
+    (show_id, status)
+  }
+}
+
+Table bookings {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  show_id uuid [not null]
+  total_amount_paise int [not null]
+  status varchar(20) [not null, default: 'PENDING', note: 'PENDING, CONFIRMED, CANCELLED, EXPIRED']
+  expires_at timestamptz [not null, note: '10 min timer to complete payment']
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+}
+
+Table booking_items {
+  id uuid [pk, default: `gen_random_uuid()`]
+  booking_id uuid [not null]
+  show_seat_id uuid [not null]
+  price_paise int [not null]
+  created_at timestamptz [default: `now()`, not null]
+
+  indexes {
+    (booking_id, show_seat_id) [unique]
+  }
+}
+
+Table payments {
+  id uuid [pk, default: `gen_random_uuid()`]
+  booking_id uuid [not null]
+  user_id uuid [not null]
+  amount_paise int [not null]
+  provider varchar(20) [not null, default: 'RAZORPAY']
+  provider_order_id varchar(100) [unique, not null]
+  provider_payment_id varchar(100) [unique, null]
+  status varchar(20) [not null, default: 'PENDING', note: 'PENDING, SUCCESS, FAILED']
+  error_reason text [null]
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+}
+
+Table refunds {
+  id uuid [pk, default: `gen_random_uuid()`]
+  payment_id uuid [not null]
+  booking_id uuid [not null]
+  amount_paise int [not null]
+  reason text [not null]
+  status varchar(20) [not null, default: 'PENDING', note: 'PENDING, PROCESSED, FAILED']
+  provider_refund_id varchar(100) [null]
+  created_at timestamptz [default: `now()`, not null]
+  updated_at timestamptz [default: `now()`, not null]
+}
+
+// ==========================================
+// RELATIONSHIPS (FOREIGN KEYS)
+// ==========================================
+
+Ref: users.role_id > roles.id
+Ref: refresh_tokens.user_id > users.id [delete: cascade]
+Ref: one_time_tokens.user_id > users.id [delete: cascade]
+
+Ref: venues.city_id > cities.id
+Ref: venues.organizer_id > users.id
+
+Ref: screens.venue_id > venues.id [delete: cascade]
+Ref: seats.screen_id > screens.id [delete: cascade]
+
+Ref: shows.screen_id > screens.id
+Ref: shows.movie_id > movies.id
+
+Ref: show_seats.show_id > shows.id [delete: cascade]
+Ref: show_seats.seat_id > seats.id
+Ref: show_seats.locked_by_user_id > users.id
+
+Ref: bookings.user_id > users.id
+Ref: bookings.show_id > shows.id
+
+Ref: booking_items.booking_id > bookings.id [delete: cascade]
+Ref: booking_items.show_seat_id > show_seats.id
+
+Ref: payments.booking_id > bookings.id
+Ref: payments.user_id > users.id
+
+Ref: refunds.payment_id > payments.id
+Ref: refunds.booking_id > bookings.id
