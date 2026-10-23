@@ -6,7 +6,7 @@ const envSchema = z.object({
     NODE_ENV: z.enum(["development", "production", "staging"]).default("development"),
     PORT: z.coerce.number().default(5000),
     JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET Must be atleast 32 character long"),
-    JWT_REFERSH_SECRET: z.string().min(32, "JWT_REFERSH_SECRET Must be atleast 32 character long"),
+    JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET Must be atleast 32 character long"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
