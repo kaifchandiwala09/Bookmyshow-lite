@@ -7,6 +7,7 @@ const envSchema = z.object({
     PORT: z.coerce.number().default(5000),
     JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET Must be atleast 32 character long"),
     JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET Must be atleast 32 character long"),
+    DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

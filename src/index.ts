@@ -1,39 +1,58 @@
 import express from "express";
 import healthRoutes from "./routes/health.routes";
 import { env } from "./config/env.config";
-import z from "zod";
-import { validate } from "./middlewares/validate.middleware";
+import { AppError, errorHandler } from "./middlewares/error.middleware";
+import { logger } from "./config/logger";
+import { httpLogger } from "./middlewares/logger.middleware";
+import swaggerUi from "swagger-ui-express";
+import { swaggerDocument } from "./docs/swagger";
+import { prisma } from "./config/db.config";
 
 const app = express();
 app.use(express.json());
+app.use(httpLogger);
+
+app.use("/health", healthRoutes);
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 
-app.use("/health", healthRoutes)
 
-
-const testSchema = z.object({
-    name: z.string().min(3, "Name must be atleast 3 characters"),
-    age: z.number().min(18, "Age must be atleast 18"),
+app.use((req, _res, next) => {
+    next(new AppError(`Route ${req.originalUrl} not found`, 404, "ROUTE_NOT_FOUND"));
 });
 
-
-app.post("/test-validation", validate(testSchema), (req, res) => {
-    res.json({
-        success: true,
-        message: "Validation Successfull",
-        data: req.body,
-    });
-});
+app.use(errorHandler);
 
 const server = app.listen(env.PORT, () => {
-    console.log(`Server running at http://localhost:${env.PORT}`);
+    logger.info(`Server running at http://localhost:${env.PORT}`);
 });
 
-server.on('error', (err) => {
-    if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-        console.error(`Port ${env.PORT} is already in use.`);
+const gracefulShutdown = async (signal: string) => {
+    logger.info(`Received ${signal}. Initiating graceful shutdown...`);
+    server.close(async () => {
+        logger.info("HTTP server closed.");
+        try {
+            await prisma.$disconnect();
+            logger.info("Database connection closed cleanly.");
+            process.exit(0);
+        } catch (error) {
+            logger.error({ error }, "Error while closing database connection");
+            process.exit(1);
+        }
+    });
+    setTimeout(() => {
+        logger.error("Could not close connections in time, forcefully shutting down");
+        process.exit(1);
+    }, 10000).unref();
+};
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+server.on("error", (err) => {
+    if ((err as NodeJS.ErrnoException).code === "EADDRINUSE") {
+        logger.error(`Port ${env.PORT} is already in use.`);
     } else {
-        console.error('Server failed to start:', err);
+        logger.error({ err }, "Server failed to start");
     }
     process.exit(1);
 });

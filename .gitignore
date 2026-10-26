@@ -1,3 +1,10 @@
 node_modules/
 dist/
 .env
+BookMyShow_Backend_Chat_History.md
+
+# AI tools & agent skills
+.agents/
+.claude/
+.cursor/
+.devin/
