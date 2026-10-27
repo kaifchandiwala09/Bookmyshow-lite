@@ -1,8 +1,10 @@
 import { env } from "../config/env.config";
 import { prisma } from "../config/db.config";
 import { AppError } from "../middlewares/error.middleware";
-import { RegisterInput } from "../schemas/auth.schema";
+import { LoginInput, RegisterInput } from "../schemas/auth.schema";
 import bcrypt from "bcrypt";
+import { generateAccessToken, generateRefereshToken } from "../utils/jwt.util";
+import { access } from "node:fs";
 
 
 export const registerUser = async (data: RegisterInput) => {
@@ -58,4 +60,49 @@ export const registerUser = async (data: RegisterInput) => {
     });
 
     return newUser;
+}
+
+export const loginUser = async (data: LoginInput) => {
+    const user = await prisma.user.findFirst({
+        where: {
+            OR: [
+                { email: data.identifier },
+                { username: data.identifier }
+            ],
+        },
+        include: {
+            role: true,
+        }
+    });
+
+    if (!user) {
+        throw new AppError("Invalid login credentials!", 401, "INVALID_LOGIN_CREDENTIALS");
+    }
+
+    const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash);
+
+    if (!isPasswordValid) {
+        throw new AppError("Invalid login credentials!", 401, "INVALID_LOGIN_CREDENTIALS");
+    }
+
+    const accessToken = generateAccessToken({
+        sub: user.id,
+        email: user.email,
+        role: user.role.name,
+    });
+    const refreshToken = generateRefereshToken(user.id);
+
+    return {
+        accessToken,
+        refreshToken,
+        user: {
+            id: user.id,
+            fullName: user.fullName,
+            username: user.username,
+            email: user.email,
+            isVerified: user.isVerified,
+            roleId: user.roleId,
+            createdAt: user.createdAt,
+        },
+    };
 }

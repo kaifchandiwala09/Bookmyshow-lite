@@ -113,5 +113,48 @@ export const swaggerDocument = {
                 },
             },
         },
+
+        // Login User
+        "/api/v1/auth/login": {
+            post: {
+                tags: ["Auth"],
+                summary: "User Login",
+                description: "Authenticates a user with email/username and password, returning JWT access & refresh tokens",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                required: ["identifier", "password"],
+                                properties: {
+                                    identifier: {
+                                        type: "string",
+                                        example: "rahul@example.com",
+                                        description: "User email or username",
+                                    },
+                                    password: {
+                                        type: "string",
+                                        format: "password",
+                                        example: "SecurePass123!",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    200: {
+                        description: "User logged in successfully",
+                    },
+                    400: {
+                        description: "Validation failed",
+                    },
+                    401: {
+                        description: "Invalid login credentials",
+                    },
+                },
+            },
+        },
     },
 };
