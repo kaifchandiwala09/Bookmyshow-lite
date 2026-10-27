@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { loginUser, registerUser } from "../services/auth.service";
+import { getUserProfile, loginUser, registerUser } from "../services/auth.service";
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -25,4 +25,18 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     } catch (err) {
         next(err);
     }
-} 
+}
+
+export const getMe = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user!.sub;
+        const user = await getUserProfile(userId);
+        return res.status(200).json({
+            success: true,
+            message: "User profile fetched successfully",
+            data: user
+        });
+    } catch (err) {
+        next(err);
+    }
+}

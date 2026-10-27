@@ -156,5 +156,37 @@ export const swaggerDocument = {
                 },
             },
         },
+
+        // Get Current User Profile (Protected)
+        "/api/v1/auth/me": {
+            get: {
+                tags: ["Auth"],
+                summary: "Get current user profile",
+                description: "Returns profile information for the authenticated user",
+                security: [
+                    {
+                        bearerAuth: [],
+                    },
+                ],
+                responses: {
+                    200: {
+                        description: "User profile fetched successfully",
+                    },
+                    401: {
+                        description: "Access token is missing, invalid or expired",
+                    },
+                },
+            },
+        },
+    },
+    components: {
+        securitySchemes: {
+            bearerAuth: {
+                type: "http",
+                scheme: "bearer",
+                bearerFormat: "JWT",
+                description: "Enter your JWT Access Token (without 'Bearer ' prefix)",
+            },
+        },
     },
 };
