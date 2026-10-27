@@ -7,6 +7,7 @@ import { httpLogger } from "./middlewares/logger.middleware";
 import swaggerUi from "swagger-ui-express";
 import { swaggerDocument } from "./docs/swagger";
 import { prisma } from "./config/db.config";
+import authRoutes from "./routes/auth.routes";
 
 const app = express();
 app.use(express.json());
@@ -14,7 +15,7 @@ app.use(httpLogger);
 
 app.use("/health", healthRoutes);
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
+app.use("/api/v1/auth", authRoutes);
 
 
 app.use((req, _res, next) => {
