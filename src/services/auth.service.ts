@@ -62,6 +62,49 @@ export const registerUser = async (data: RegisterInput) => {
     return newUser;
 }
 
+export const checkUsernameAvailability = async (rawUsername: string) => {
+    const username = rawUsername.toLowerCase().trim();
+
+    const existingUser = await prisma.user.findUnique({
+        where: { username },
+        select: { id: true },
+    })
+
+    if (!existingUser) {
+        return { available: true }
+    }
+    const candidates: string[] = [];
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+
+    candidates.push(`${username}${Math.floor(10 + Math.random() * 90)}`);
+    candidates.push(`${username}_${Math.floor(10 + Math.random() * 90)}`);
+    candidates.push(`${username}.${currentYear}`);
+    candidates.push(`${username}_dev`);
+    candidates.push(`${username}${Math.floor(100 + Math.random() * 900)}`);
+
+    const validCandidates = candidates.filter((c) => c.length <= 20);
+
+    const takenRecords = await prisma.user.findMany({
+        where: {
+            username: { in: validCandidates },
+        },
+        select: {
+            username: true
+        }
+    });
+
+    const takenUsernames = new Set(takenRecords.map((r) => r.username.toLowerCase()));
+
+    const availableSuggestions = validCandidates
+        .filter((candidate) => !takenUsernames.has(candidate.toLowerCase()))
+        .slice(0, 3);
+
+    return {
+        available: false,
+        suggestions: availableSuggestions
+    }
+}
+
 export const loginUser = async (data: LoginInput) => {
     const user = await prisma.user.findFirst({
         where: {
@@ -75,7 +118,7 @@ export const loginUser = async (data: LoginInput) => {
         }
     });
 
-    if (!user) {
+    if (!user || !user.passwordHash) {
         throw new AppError("Invalid login credentials!", 401, "INVALID_LOGIN_CREDENTIALS");
     }
 
@@ -126,7 +169,7 @@ export const getUserProfile = async (userId: string) => {
         },
     });
 
-    if(!user){
+    if (!user) {
         throw new AppError("User not found", 404, "USER_NOT_FOUND");
     }
     return user;

@@ -34,30 +34,43 @@ model City {
 
 // 3. Users Model
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique @db.VarChar(255)
-  fullName     String   @map("full_name") @db.VarChar(100)
-  username     String   @unique @db.VarChar(50)
-  passwordHash String   @map("password_hash")
-  roleId       Int      @map("role_id") @db.SmallInt
-  role         Role     @relation(fields: [roleId], references: [id])
-  isVerified   Boolean  @default(false) @map("is_verified")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                  String         @id @default(uuid())
+  email               String         @unique @db.VarChar(255)
+  fullName            String         @map("full_name") @db.VarChar(100)
+  username            String         @unique @db.VarChar(50)
+  passwordHash        String?        @map("password_hash")
+  roleId              Int            @map("role_id") @db.SmallInt
+  role                Role           @relation(fields: [roleId], references: [id])
+  isVerified          Boolean        @default(false) @map("is_verified")
+  isActive            Boolean        @default(true) @map("is_active")
+  failedLoginAttempts Int            @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?      @map("locked_until") @db.Timestamptz
+  lastLoginAt         DateTime?      @map("last_login_at") @db.Timestamptz
+  deletedAt           DateTime?      @map("deleted_at") @db.Timestamptz
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  refreshTokens       RefreshToken[]
 
-  refreshTokens RefereshToken[]
   @@map("users")
 }
 
-// 4. Referesh Token Model
-model RefereshToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @map("token_hash")
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
-  isRevoked Boolean  @default(false)
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now())
+// 4. Refresh Token Model (RFC 6819 Token Family Pattern)
+model RefreshToken {
+  id              String         @id @default(uuid())
+  userId          String         @map("user_id")
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash       String         @unique @map("token_hash") @db.Char(64)
+  familyId        String         @map("family_id")
+  userAgent       String?        @map("user_agent") @db.VarChar(255)
+  ipAddress       String?        @map("ip_address") @db.Inet
+  expiresAt       DateTime       @map("expires_at") @db.Timestamptz
+  revokedAt       DateTime?      @map("revoked_at") @db.Timestamptz
+  replacedBy      String?        @map("replaced_by")
+  replacedByToken RefreshToken?  @relation("TokenReplacement", fields: [replacedBy], references: [id])
+  replacesTokens  RefreshToken[] @relation("TokenReplacement")
+  createdAt       DateTime       @default(now()) @map("created_at")
 
+  @@index([userId])
+  @@index([familyId])
   @@map("refresh_tokens")
 }

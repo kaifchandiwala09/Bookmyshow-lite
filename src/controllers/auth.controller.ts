@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { getUserProfile, loginUser, registerUser } from "../services/auth.service";
+import { checkUsernameAvailability, getUserProfile, loginUser, registerUser } from "../services/auth.service";
+import { usernameAvailabilitySchema } from "../schemas/auth.schema";
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -11,6 +12,27 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         });
     } catch (error) {
         next(error);
+    }
+}
+
+export const checkUsername = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const parsed = usernameAvailabilitySchema.safeParse(req.query);
+        if (!parsed.success) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid username format",
+                errors: parsed.error.format(),
+            });
+        }
+
+        const result = await checkUsernameAvailability(parsed.data.username);
+        return res.status(200).json({
+            success: true,
+            data: result,
+        });
+    } catch (err) {
+        next(err)
     }
 }
 
