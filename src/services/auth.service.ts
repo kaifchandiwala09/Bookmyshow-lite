@@ -3,8 +3,9 @@ import { prisma } from "../config/db.config";
 import { AppError } from "../middlewares/error.middleware";
 import { LoginInput, RegisterInput } from "../schemas/auth.schema";
 import bcrypt from "bcrypt";
-import { generateAccessToken, generateRefereshToken } from "../utils/jwt.util";
+import { generateAccessToken, generateRefereshToken, verifyRefreshToken } from "../utils/jwt.util";
 import { access } from "node:fs";
+import { hashToken } from "../utils/token.util";
 
 
 export const registerUser = async (data: RegisterInput) => {
@@ -105,7 +106,7 @@ export const checkUsernameAvailability = async (rawUsername: string) => {
     }
 }
 
-export const loginUser = async (data: LoginInput) => {
+export const loginUser = async (data: LoginInput, metadata?: { ipAddress?: string; userAgent?: string }) => {
     const user = await prisma.user.findFirst({
         where: {
             OR: [
@@ -134,6 +135,22 @@ export const loginUser = async (data: LoginInput) => {
         role: user.role.name,
     });
     const refreshToken = generateRefereshToken(user.id);
+
+    const familyId = crypto.randomUUID();
+    const expiresAt = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+    );
+
+    await prisma.refreshToken.create({
+        data: {
+            userId: user.id,
+            familyId,
+            tokenHash: hashToken(refreshToken),
+            expiresAt,
+            ipAddress: metadata?.ipAddress,
+            userAgent: metadata?.userAgent
+        }
+    });
 
     return {
         accessToken,
@@ -173,4 +190,37 @@ export const getUserProfile = async (userId: string) => {
         throw new AppError("User not found", 404, "USER_NOT_FOUND");
     }
     return user;
+}
+
+interface RefreshMetadata {
+    ipAddress?: string;
+    userAgent?: string;
+}
+
+export const rotateRefreshToken = async (rawRefreshToken: string, metadata?: RefreshMetadata) => {
+    const payload = verifyRefreshToken(rawRefreshToken);
+    const tokenHash = hashToken(rawRefreshToken);
+    const result = await prisma.$transaction(async (tx) => {
+        const storedToken = await tx.refreshToken.findUnique({
+            where: {
+                tokenHash
+            },
+            include: {
+                user: {
+                    include: {
+                        role: true
+                    }
+                }
+            }
+        });
+
+        if (!storedToken || storedToken.userId !== payload.sub) {
+            throw new AppError("Invalid or expired refresh token!", 401, "INVALID_REFRESH_TOKEN");
+        }
+
+        if (storedToken.revokedAt !== null) {
+            await tx.refreshToken.familyId,
+            revokedAt: null
+        }
+    }) 
 }

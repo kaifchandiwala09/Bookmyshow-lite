@@ -8,12 +8,13 @@ export interface AccessTokenPayload {
     role: string;
 }
 
-export interface RefershTokenPayload {
+export interface RefreshTokenPayload {
     sub: string;
+    jti: string;
 }
 
 const ACCESS_TOKEN_EXPIRY = "15m";
-const REFERSH_TOKEN_EXPIRY = "7d";
+const REFRESH_TOKEN_EXPIRY = "7d";
 
 export const generateAccessToken = (payload: AccessTokenPayload): string => {
     return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
@@ -28,14 +29,14 @@ export const verifyAccessToken = (token: string): AccessTokenPayload => {
 }
 
 export const generateRefereshToken = (userId: string): string => {
-    const payload: RefershTokenPayload = { sub: userId };
+    const payload: RefreshTokenPayload = { sub: userId, jti: crypto.randomUUID() };
     return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-        expiresIn: REFERSH_TOKEN_EXPIRY,
+        expiresIn: REFRESH_TOKEN_EXPIRY,
         algorithm: "HS256",
         issuer: "BookMyShow-Lite"
     });
 };
 
-export const verifyRefreshToken = (token: string): RefershTokenPayload => {
-    return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefershTokenPayload;
+export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
+    return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshTokenPayload;
 }

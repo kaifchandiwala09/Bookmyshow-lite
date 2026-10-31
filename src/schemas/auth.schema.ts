@@ -79,3 +79,21 @@ export const usernameAvailabilitySchema = z.object({
 });
 
 export type UsernameAvailabilityInput = z.infer<typeof usernameAvailabilitySchema>;
+
+export const refreshTokenSchema = z.object({
+    refreshToken: z
+        .string()
+        .min(1, "Refresh Token is required")
+        .trim(),
+});
+
+export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+
+export const logoutSchema = z.object({
+    refreshToken: z
+    .string()
+    .min(1, "Refresh Token is required")
+    .trim(),
+});
+
+export type LogoutInput = z.infer<typeof logoutSchema>;
